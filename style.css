@@ -1,0 +1,529 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600;700&display=swap');
+
+/* Design System Variables */
+:root {
+    --color-primary: #2563EB;
+    --color-secondary: #3B82F6;
+    --color-cta: #F97316;
+    --color-background: #F8FAFC;
+    --color-text: #1E293B;
+
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+    --shadow-xl: 0 20px 25px rgba(0,0,0,0.15);
+
+    /* Dark Mode Colors */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --border-color: #475569;
+
+    /* Macro Colors */
+    --macro-protein: #8B5CF6;
+    --macro-carbs: #F97316;
+    --macro-fat: #EC4899;
+}
+
+/* Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
+
+body {
+    font-family: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    min-height: 100vh;
+    line-height: 1.6;
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    padding: var(--space-2xl) var(--space-lg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-lg);
+}
+
+.header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-cta);
+    letter-spacing: -1px;
+}
+
+.header-info {
+    display: flex;
+    gap: var(--space-lg);
+    font-size: 1rem;
+}
+
+.date, .goal {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-primary);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.loading {
+    display: none;
+    align-items: center;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--color-cta);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading.active {
+    display: flex;
+}
+
+/* Container & Sections */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-2xl) var(--space-lg);
+    display: grid;
+    gap: var(--space-2xl);
+}
+
+.section {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: var(--space-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    transition: all 300ms ease;
+}
+
+.section:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.section h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: var(--space-lg);
+    color: var(--color-cta);
+    letter-spacing: -0.5px;
+}
+
+/* Calorie Ring Section */
+.calorie-section {
+    grid-column: 1 / -1;
+}
+
+.calorie-ring-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: var(--space-2xl);
+    padding: var(--space-lg);
+    flex-wrap: wrap;
+}
+
+canvas#calorieRing {
+    width: 250px !important;
+    height: 250px !important;
+    flex-shrink: 0;
+}
+
+.calorie-stats {
+    display: flex;
+    gap: var(--space-xl);
+    align-items: center;
+    flex: 1;
+    justify-content: center;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.stat-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-cta);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-divider {
+    width: 2px;
+    height: 60px;
+    background: var(--border-color);
+    border-radius: 1px;
+}
+
+/* Macro Section */
+.macro-section {
+    grid-column: 1 / -1;
+}
+
+.macro-container {
+    height: 300px;
+    margin-bottom: var(--space-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.macro-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-lg);
+}
+
+.macro-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    transition: all 200ms ease;
+}
+
+.macro-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--color-cta);
+}
+
+.macro-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.macro-color.protein {
+    background: var(--macro-protein);
+}
+
+.macro-color.carbs {
+    background: var(--macro-carbs);
+}
+
+.macro-color.fat {
+    background: var(--macro-fat);
+}
+
+.macro-info {
+    flex: 1;
+}
+
+.macro-name {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.macro-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Trend Section */
+.trend-section {
+    grid-column: 1 / -1;
+}
+
+.trend-container {
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Meals Section */
+.meals-section {
+    grid-column: 1 / -1;
+}
+
+.meals-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.meal-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-lg);
+    background: var(--bg-primary);
+    border-radius: 12px;
+    border-left: 4px solid var(--color-cta);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--color-cta);
+    transition: all 200ms ease;
+    cursor: pointer;
+}
+
+.meal-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--color-cta);
+    transform: translateX(4px);
+}
+
+.meal-item:active {
+    transform: translateX(2px);
+}
+
+.meal-info {
+    flex: 1;
+}
+
+.meal-food {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.meal-meta {
+    display: flex;
+    gap: var(--space-lg);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.meal-meta span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.meal-calories {
+    text-align: right;
+}
+
+.meal-calories-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-cta);
+    line-height: 1;
+}
+
+.meal-calories-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-3xl) var(--space-lg);
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: var(--space-lg);
+    opacity: 0.5;
+}
+
+.empty-state p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .container {
+        grid-template-columns: 1fr;
+        padding: var(--space-lg);
+    }
+
+    .calorie-ring-container {
+        flex-direction: column;
+        gap: var(--space-lg);
+    }
+
+    canvas#calorieRing {
+        width: 200px !important;
+        height: 200px !important;
+    }
+
+    .macro-container {
+        height: 250px;
+    }
+
+    .trend-container {
+        height: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .header h1 {
+        font-size: 1.75rem;
+    }
+
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+
+    .header-info {
+        flex-wrap: wrap;
+        gap: var(--space-md);
+    }
+
+    .calorie-stats {
+        flex-direction: column;
+        gap: var(--space-lg);
+    }
+
+    .stat-divider {
+        width: 40px;
+        height: 2px;
+    }
+
+    .macro-details {
+        grid-template-columns: 1fr;
+    }
+
+    .meal-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+
+    .meal-calories {
+        text-align: left;
+        align-self: flex-start;
+    }
+
+    .section h2 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 375px) {
+    .header {
+        padding: var(--space-lg);
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
+    }
+
+    .header-info {
+        flex-direction: column;
+        width: 100%;
+        gap: var(--space-sm);
+    }
+
+    .date, .goal {
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .container {
+        padding: var(--space-md);
+        gap: var(--space-lg);
+    }
+
+    .section {
+        padding: var(--space-md);
+        border-radius: 12px;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+    }
+
+    .meal-food {
+        font-size: 1rem;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus States */
+button:focus-visible,
+.meal-item:focus-visible {
+    outline: 2px solid var(--color-cta);
+    outline-offset: 2px;
+}
+
+/* Chart.js Dark Mode Defaults */
+.chartjs-render-monitor {
+    filter: invert(1) hue-rotate(180deg);
+}

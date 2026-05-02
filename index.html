@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calorie Tracker Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>Calorie Tracker</h1>
+            <div class="header-info">
+                <span class="date" id="todayDate"></span>
+                <span class="goal">Goal: 2000 cal</span>
+            </div>
+        </div>
+        <div class="loading" id="loadingSpinner">
+            <div class="spinner"></div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Calorie Ring Section -->
+        <section class="section calorie-section">
+            <div class="calorie-ring-container">
+                <canvas id="calorieRing"></canvas>
+                <div class="calorie-stats">
+                    <div class="stat">
+                        <div class="stat-value" id="calorieCount">0</div>
+                        <div class="stat-label">Consumed</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat">
+                        <div class="stat-value" id="calorieRemaining">2000</div>
+                        <div class="stat-label">Remaining</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Macro Breakdown Section -->
+        <section class="section macro-section">
+            <h2>Macronutrient Breakdown</h2>
+            <div class="macro-container">
+                <canvas id="macroChart"></canvas>
+            </div>
+            <div class="macro-details">
+                <div class="macro-item">
+                    <div class="macro-color protein"></div>
+                    <div class="macro-info">
+                        <div class="macro-name">Protein</div>
+                        <div class="macro-value" id="proteinValue">0g</div>
+                    </div>
+                </div>
+                <div class="macro-item">
+                    <div class="macro-color carbs"></div>
+                    <div class="macro-info">
+                        <div class="macro-name">Carbs</div>
+                        <div class="macro-value" id="carbsValue">0g</div>
+                    </div>
+                </div>
+                <div class="macro-item">
+                    <div class="macro-color fat"></div>
+                    <div class="macro-info">
+                        <div class="macro-name">Fat</div>
+                        <div class="macro-value" id="fatValue">0g</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Weekly Trend Section -->
+        <section class="section trend-section">
+            <h2>Weekly Calorie Trend</h2>
+            <div class="trend-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Today's Meals Section -->
+        <section class="section meals-section">
+            <h2>Today's Meals</h2>
+            <div class="meals-list" id="mealsList">
+                <div class="empty-state">
+                    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <p>No meals logged yet today</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
