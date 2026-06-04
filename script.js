@@ -1,9 +1,7 @@
 // ============================================
 // CONFIGURATION
 // ============================================
-const GOOGLE_API_KEY = 'AIzaSyB_s_loxgny9nE8IbIGMng13ENtP3rP684'; // Add your Google API key here
-const SHEET_ID = '15IaBLt3qavzcnBi2wRxtE1HDwaf7H-JBYNfQzxilSYU';
-const RANGE = 'Sheet1!A:L'; // All columns
+const PROXY_URL = '/.netlify/functions/sheets';
 const DAILY_GOAL = 2000;
 
 // Dark mode colors
@@ -62,18 +60,10 @@ function initializePage() {
 // GOOGLE SHEETS API
 // ============================================
 async function fetchData() {
-    if (!GOOGLE_API_KEY) {
-        showError('Please add your Google API key to the GOOGLE_API_KEY variable in script.js');
-        return;
-    }
-
     try {
         showLoading(true);
 
-        const encodedRange = encodeURIComponent(RANGE);
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodedRange}?key=${GOOGLE_API_KEY}`;
-        console.log('Fetching from:', url);
-        const response = await fetch(url);
+        const response = await fetch(PROXY_URL);
 
         if (!response.ok) {
             throw new Error(`API Error: ${response.status} ${response.statusText}`);
