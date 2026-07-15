@@ -1,6 +1,11 @@
 import WidgetKit
 import SwiftUI
 
+// MARK: - Constants
+
+/// Must match APP_GROUP in app.config.js
+let appGroup = "group.com.markscheiber.foodlog"
+
 // MARK: - Data models
 
 struct FoodEntry: TimelineEntry {
@@ -11,10 +16,25 @@ struct FoodEntry: TimelineEntry {
     let carbs: Int
     let fat: Int
     let isPlaceholder: Bool
+    let isSignedOut: Bool
 }
 
-struct SheetsResponse: Codable {
-    let values: [[String]]?
+/// Row shape returned by PostgREST for food_logs
+struct FoodLogRow: Codable {
+    let calories: Int?
+    let protein_g: Double?
+    let carbs_g: Double?
+    let fat_g: Double?
+}
+
+/// Cached payload the app writes via ExtensionStorage
+struct CachedPayload: Codable {
+    let calories: Int
+    let goal: Int
+    let protein: Int
+    let carbs: Int
+    let fat: Int
+    let updatedAt: String
 }
 
 // MARK: - Timeline provider
@@ -22,116 +42,139 @@ struct SheetsResponse: Codable {
 struct FoodLogProvider: TimelineProvider {
 
     func placeholder(in context: Context) -> FoodEntry {
-        FoodEntry(date: .now, calories: 1240, goal: 2000, protein: 95, carbs: 130, fat: 42, isPlaceholder: true)
+        FoodEntry(date: .now, calories: 1240, goal: 2000, protein: 95, carbs: 130, fat: 42,
+                  isPlaceholder: true, isSignedOut: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (FoodEntry) -> Void) {
         Task {
-            let entry = (try? await fetchEntry()) ?? placeholder(in: context)
-            completion(entry)
+            completion(await fetchEntry())
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<FoodEntry>) -> Void) {
         Task {
-            let entry = (try? await fetchEntry()) ?? placeholder(in: context)
+            let entry = await fetchEntry()
             // Refresh every 15 minutes
             let next = Calendar.current.date(byAdding: .minute, value: 15, to: .now)!
-            let timeline = Timeline(entries: [entry], policy: .after(next))
-            completion(timeline)
+            completion(Timeline(entries: [entry], policy: .after(next)))
         }
     }
 
-    // MARK: - Sheets fetch
+    // MARK: - Supabase fetch
 
-    private func fetchEntry() async throws -> FoodEntry {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let apiKey = info["SHEETS_API_KEY"] as? String ?? ""
-        let sheetId = info["SHEETS_ID"] as? String ?? ""
-        let goal = Int(info["DAILY_GOAL"] as? String ?? "2000") ?? 2000
+    private func fetchEntry() async -> FoodEntry {
+        let defaults = UserDefaults(suiteName: appGroup)
+        let supabaseUrl = defaults?.string(forKey: "supabaseUrl") ?? ""
+        let anonKey = defaults?.string(forKey: "supabaseAnonKey") ?? ""
+        let accessToken = defaults?.string(forKey: "accessToken")
+        let goal = (defaults?.object(forKey: "dailyGoal") as? Int) ?? 2000
 
-        guard !apiKey.isEmpty, !sheetId.isEmpty else {
-            throw URLError(.badURL)
+        // No session yet — show the sign-in placeholder, never crash
+        guard let token = accessToken, !token.isEmpty, !supabaseUrl.isEmpty, !anonKey.isEmpty else {
+            return signedOutEntry(goal: goal)
         }
 
-        let range = "Sheet1!A:L".addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? "Sheet1!A:L"
-        let urlStr = "https://sheets.googleapis.com/v4/spreadsheets/\(sheetId)/values/\(range)?key=\(apiKey)"
-        guard let url = URL(string: urlStr) else { throw URLError(.badURL) }
-
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let decoded = try JSONDecoder().decode(SheetsResponse.self, from: data)
-        return parseRows(decoded.values ?? [], goal: goal)
+        do {
+            let rows = try await fetchTodayRows(supabaseUrl: supabaseUrl, anonKey: anonKey, token: token)
+            var cal = 0.0, prot = 0.0, carb = 0.0, fat = 0.0
+            for row in rows {
+                cal  += Double(row.calories ?? 0)
+                prot += row.protein_g ?? 0
+                carb += row.carbs_g ?? 0
+                fat  += row.fat_g ?? 0
+            }
+            return FoodEntry(
+                date: .now,
+                calories: Int(cal.rounded()),
+                goal: goal,
+                protein: Int(prot.rounded()),
+                carbs: Int(carb.rounded()),
+                fat: Int(fat.rounded()),
+                isPlaceholder: false,
+                isSignedOut: false
+            )
+        } catch {
+            // Token expired or offline — fall back to the payload the app cached
+            if let cached = cachedEntry(defaults: defaults) {
+                return cached
+            }
+            return signedOutEntry(goal: goal)
+        }
     }
 
-    // MARK: - Row parsing (mirrors web app logic)
+    private func fetchTodayRows(supabaseUrl: String, anonKey: String, token: String) async throws -> [FoodLogRow] {
+        // Start of the local day, ISO8601 with offset, so timestamptz compares correctly
+        let startOfDay = Calendar.current.startOfDay(for: .now)
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let sinceISO = formatter.string(from: startOfDay)
 
-    private func parseRows(_ rows: [[String]], goal: Int) -> FoodEntry {
-        guard rows.count > 1 else {
-            return FoodEntry(date: .now, calories: 0, goal: goal, protein: 0, carbs: 0, fat: 0, isPlaceholder: false)
+        var components = URLComponents(string: "\(supabaseUrl)/rest/v1/food_logs")!
+        components.queryItems = [
+            URLQueryItem(name: "select", value: "calories,protein_g,carbs_g,fat_g"),
+            URLQueryItem(name: "logged_at", value: "gte.\(sinceISO)"),
+        ]
+        guard let url = components.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw URLError(.userAuthenticationRequired)
         }
+        return try JSONDecoder().decode([FoodLogRow].self, from: data)
+    }
 
-        let headers = rows[0].map { $0.lowercased().trimmingCharacters(in: .whitespaces) }
-        func idx(_ name: String) -> Int? { headers.firstIndex(of: name.lowercased()) }
-
-        let tsIdx    = idx("timestamp")
-        let calIdx   = idx("calories")
-        let protIdx  = idx("protien (g)")   // intentional typo matches sheet
-        let carbIdx  = idx("carbs (g)")
-        let fatIdx   = idx("fat (g)")
-
-        let today = todayDateString()
-
-        var totalCal = 0.0, totalProt = 0.0, totalCarb = 0.0, totalFat = 0.0
-
-        for row in rows.dropFirst() {
-            guard let ti = tsIdx, let ci = calIdx, row.count > max(ti, ci) else { continue }
-            let dateStr = normalizeDate(row[ti])
-            guard dateStr == today else { continue }
-
-            totalCal  += Double(row[ci]) ?? 0
-            if let pi = protIdx, row.count > pi { totalProt += Double(row[pi]) ?? 0 }
-            if let cb = carbIdx, row.count > cb { totalCarb += Double(row[cb]) ?? 0 }
-            if let fi = fatIdx,  row.count > fi { totalFat  += Double(row[fi]) ?? 0 }
-        }
-
+    private func cachedEntry(defaults: UserDefaults?) -> FoodEntry? {
+        guard let raw = defaults?.string(forKey: "cachedPayload"),
+              let data = raw.data(using: .utf8),
+              let payload = try? JSONDecoder().decode(CachedPayload.self, from: data)
+        else { return nil }
         return FoodEntry(
             date: .now,
-            calories: Int(totalCal.rounded()),
-            goal: goal,
-            protein: Int(totalProt.rounded()),
-            carbs: Int(totalCarb.rounded()),
-            fat: Int(totalFat.rounded()),
-            isPlaceholder: false
+            calories: payload.calories,
+            goal: payload.goal,
+            protein: payload.protein,
+            carbs: payload.carbs,
+            fat: payload.fat,
+            isPlaceholder: false,
+            isSignedOut: false
         )
     }
 
-    private func todayDateString() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: .now)
-    }
-
-    private func normalizeDate(_ raw: String) -> String {
-        let part = raw.trimmingCharacters(in: .whitespaces).components(separatedBy: " ").first ?? raw
-        if part.contains("/") {
-            let c = part.components(separatedBy: "/")
-            if c.count == 3 {
-                return String(format: "%04d-%02d-%02d",
-                    Int(c[2]) ?? 0, Int(c[0]) ?? 0, Int(c[1]) ?? 0)
-            }
-        }
-        return part
+    private func signedOutEntry(goal: Int) -> FoodEntry {
+        FoodEntry(date: .now, calories: 0, goal: goal, protein: 0, carbs: 0, fat: 0,
+                  isPlaceholder: false, isSignedOut: true)
     }
 }
 
 // MARK: - Widget views
+
+struct SignedOutView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("Food Log")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
+            Text("Open the app to sign in")
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.059, green: 0.09, blue: 0.161))
+    }
+}
 
 struct CalorieRingView: View {
     let consumed: Int
     let goal: Int
 
     var progress: Double { goal > 0 ? min(Double(consumed) / Double(goal), 1.0) : 0 }
-    var remaining: Int { max(0, goal - consumed) }
     var overGoal: Bool { consumed > goal }
     var ringColor: Color { overGoal ? .red : .orange }
 
@@ -209,7 +252,6 @@ struct MediumWidgetView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Ring
             CalorieRingView(consumed: entry.calories, goal: entry.goal)
                 .frame(width: 100, height: 100)
 
@@ -255,13 +297,17 @@ struct FoodLogWidgetEntryView: View {
     let entry: FoodEntry
 
     var body: some View {
-        switch family {
-        case .systemSmall:
-            SmallWidgetView(entry: entry)
-        case .systemMedium:
-            MediumWidgetView(entry: entry)
-        default:
-            SmallWidgetView(entry: entry)
+        if entry.isSignedOut {
+            SignedOutView()
+        } else {
+            switch family {
+            case .systemSmall:
+                SmallWidgetView(entry: entry)
+            case .systemMedium:
+                MediumWidgetView(entry: entry)
+            default:
+                SmallWidgetView(entry: entry)
+            }
         }
     }
 }

@@ -33,14 +33,26 @@ module.exports = {
     ios: {
       supportsTablet: false,
       bundleIdentifier: BUNDLE_ID,
-      deploymentTarget: '16.0',
+      buildNumber: '1',
+      deploymentTarget: '16.2',
+      usesAppleSignIn: true,
       entitlements: {
         'com.apple.security.application-groups': [APP_GROUP],
+      },
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     plugins: [
       'expo-router',
-      'expo-apple-targets',
+      'expo-apple-authentication',
+      [
+        '@bacons/apple-targets',
+        {
+          // [MARK] Read from Xcode → Settings → Accounts or developer.apple.com → Membership
+          appleTeamId: process.env.APPLE_TEAM_ID || 'REPLACE_WITH_TEAM_ID',
+        },
+      ],
       [
         'expo-background-fetch',
         {
@@ -49,9 +61,11 @@ module.exports = {
       ],
     ],
     extra: {
-      googleSheetsApiKey: process.env.GOOGLE_SHEETS_API_KEY || '',
-      googleSheetsId: process.env.GOOGLE_SHEETS_ID || '',
-      dailyGoal: parseInt(process.env.DAILY_GOAL || '2000', 10),
+      // Safe to embed — RLS is the security boundary, the anon key is public by design.
+      supabaseUrl: process.env.SUPABASE_URL || '',
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+      // iCloud link to the published "Log Food" shortcut (Phase 4)
+      siriShortcutUrl: process.env.SIRI_SHORTCUT_URL || '',
       appGroup: APP_GROUP,
     },
   },

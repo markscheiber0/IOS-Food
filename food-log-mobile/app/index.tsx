@@ -1,10 +1,16 @@
-import React from 'react';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { CalorieRing } from '../src/components/CalorieRing';
@@ -12,7 +18,7 @@ import { MacroBreakdown } from '../src/components/MacroBreakdown';
 import { MealsList } from '../src/components/MealsList';
 import { WeeklyTrend } from '../src/components/WeeklyTrend';
 import { COLORS } from '../src/constants/colors';
-import { useSheetData } from '../src/hooks/useSheetData';
+import { useFoodLogs } from '../src/hooks/useFoodLogs';
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
@@ -25,25 +31,58 @@ function formatDate(date: Date): string {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      {title ? <Text style={styles.sectionTitle}>{title}</Text> : null}
       {children}
     </View>
   );
 }
 
 export default function HomeScreen() {
-  const { data, loading, refreshing, error, onRefresh, dailyGoal } = useSheetData();
+  const { data, loading, refreshing, error, onRefresh, dailyGoal, submitFood } =
+    useFoodLogs();
+  const router = useRouter();
+  const [foodText, setFoodText] = useState('');
+  const [logging, setLogging] = useState(false);
+  const [lastSummary, setLastSummary] = useState<string | null>(null);
+
+  const handleLog = async () => {
+    const text = foodText.trim();
+    if (!text || logging) return;
+    setLogging(true);
+    setLastSummary(null);
+    try {
+      const summary = await submitFood(text);
+      setFoodText('');
+      setLastSummary(summary);
+    } catch (e: unknown) {
+      Alert.alert('Could not log that', e instanceof Error ? e.message : 'Try again.');
+    } finally {
+      setLogging(false);
+    }
+  };
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Calorie Tracker</Text>
+          <Text style={styles.headerTitle}>Food Log</Text>
           <Text style={styles.headerDate}>{formatDate(new Date())}</Text>
         </View>
-        <View style={styles.goalBadge}>
-          <Text style={styles.goalText}>Goal: {dailyGoal} cal</Text>
+        <View style={styles.headerRight}>
+          <View style={styles.goalBadge}>
+            <Text style={styles.goalText}>Goal: {dailyGoal} cal</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.push('/settings')}
+            accessibilityLabel="Settings"
+          >
+            <Text style={styles.iconText}>⚙️</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -65,8 +104,41 @@ export default function HomeScreen() {
               colors={[COLORS.cta]}
             />
           }
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Log input — the primary action, and the App Review demo path */}
+          <View style={styles.logCard}>
+            <Text style={styles.logLabel}>What did you eat?</Text>
+            <View style={styles.logRow}>
+              <TextInput
+                style={styles.logInput}
+                placeholder="e.g. 2 eggs and toast"
+                placeholderTextColor={COLORS.textMuted}
+                value={foodText}
+                onChangeText={setFoodText}
+                onSubmitEditing={handleLog}
+                returnKeyType="send"
+                editable={!logging}
+              />
+              <TouchableOpacity
+                style={[styles.logButton, logging && styles.logButtonDisabled]}
+                onPress={handleLog}
+                disabled={logging}
+              >
+                {logging ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.logButtonText}>Log</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            {lastSummary ? <Text style={styles.summaryText}>✓ {lastSummary}</Text> : null}
+            <TouchableOpacity onPress={() => router.push('/siri-setup')}>
+              <Text style={styles.siriLink}>Set up “Hey Siri, Log Food” →</Text>
+            </TouchableOpacity>
+          </View>
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>⚠️ {error}</Text>
@@ -76,10 +148,7 @@ export default function HomeScreen() {
           {data ? (
             <>
               <Section title="">
-                <CalorieRing
-                  consumed={data.today.totalCalories}
-                  goal={dailyGoal}
-                />
+                <CalorieRing consumed={data.today.totalCalories} goal={dailyGoal} />
               </Section>
 
               <Section title="Macronutrient Breakdown">
@@ -103,7 +172,7 @@ export default function HomeScreen() {
           <View style={styles.bottomSpacer} />
         </ScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -134,6 +203,11 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 2,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   goalBadge: {
     backgroundColor: COLORS.bgPrimary,
     borderWidth: 1,
@@ -146,12 +220,68 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
   },
+  iconButton: {
+    padding: 4,
+  },
+  iconText: {
+    fontSize: 22,
+  },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
     gap: 16,
+  },
+  logCard: {
+    backgroundColor: COLORS.bgSecondary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 16,
+    gap: 12,
+  },
+  logLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  logRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logInput: {
+    flex: 1,
+    backgroundColor: COLORS.bgPrimary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: COLORS.textPrimary,
+  },
+  logButton: {
+    backgroundColor: COLORS.cta,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  logButtonDisabled: {
+    opacity: 0.6,
+  },
+  logButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  summaryText: {
+    color: '#4ADE80',
+    fontSize: 13,
+  },
+  siriLink: {
+    color: COLORS.secondary,
+    fontSize: 13,
   },
   section: {
     backgroundColor: COLORS.bgSecondary,

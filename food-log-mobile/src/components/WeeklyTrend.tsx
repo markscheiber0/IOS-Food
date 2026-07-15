@@ -51,7 +51,7 @@ export function WeeklyTrend({ weekly, goal }: Props) {
         endOpacity1={0}
         areaChart
         curved
-        dashPattern2={[6, 4]}
+        strokeDashArray2={[6, 4]}
         thickness1={3}
         thickness2={2}
         noOfSections={4}
